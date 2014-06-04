@@ -1,0 +1,7 @@
+ iCamasu
+ by Raul Siles
+ 
+ iCamasu, iOS com_apple_MobileAsset_SoftwareUpdate, is a Python-based tool that parses and extracts multiple details from Apple iOS software update PLIST files,"com_apple_MobileAsset_SoftwareUpdate.xml".
+ 
+ Copyright (c) 2014 DinoSec SL (www.dinosec.com)
+ 
