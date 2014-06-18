@@ -5,8 +5,8 @@ __author__    = "Raul Siles"
 __email__     = "raul@dinosec.com"
 __copyright__ = "Copyright (c) 2014 DinoSec SL (www.dinosec.com)"
 __license__   = "GPL"
-__version__   = "0.41"
-__date__      = "2014-05-29"
+__version__   = "0.42"
+__date__      = "2014-06-14"
 
 import plistlib
 import argparse
@@ -16,28 +16,36 @@ import hashlib
 import binascii
 from collections import defaultdict
 
+#
+#  Version history:
+#
+# - Version v0.41 (original version): 2014-05-29
+#   Released at Area41 in June, 2014
+#
+# - Version v0.42: 2014-06-14
+#   New '-q' option (--quiet)
+#   New '-x' option (--xml-schema-count)
+#   New '-X' option (--xml-schema)
+#
+
 # -- iCamasu --
 
 # Latest iOS version whose PLIST file has been tested:
 ios_version_tested = "7.1.1"
 
 asciiart = '''
-           ,gggg,
-  OO     ,88"""Y8b,
-        d8"     `Y8
-  gg   d8'   8b  d8
-  gg  ,8I    "Y88P'
-  gg  I8'         ,gggg,gg   ,ggg,,ggg,,ggg,     ,gggg,gg    ,g,     gg      gg
-  88  d8         dP"  "Y8I  ,8" "8P" "8P" "8,   dP"  "Y8I   ,8'8,    I8      8I
-  88  Y8,       i8'    ,8I  I8   8I   8I   8I  i8'    ,8I  ,8'  Yb   I8,    ,8I
-_,88,_`Yba,,__,,d8,   ,d8b,,dP   8I   8I   Yb,,d8,   ,d8b,,8'_   8) ,d8b,  ,d8b
-8P""Y8  `"Y888 P"Y8888P"`Y88P'   8I   8I   `Y8P"Y8888P"`Y8P' "YY8P8P8P'"Y88P"`Y8
+         _  ____                                
+        (_)/ ___|__ _ _ __ ___   __ _ ___ _   _ 
+        | | |   / _` | '_ ` _ \ / _` / __| | | |
+        | | |__| (_| | | | | | | (_| \__ \ |_| |
+        |_|\____\__,_|_| |_| |_|\__,_|___/\__,_|
 '''
 
 # ----
 # Variables:
 
 verbose = False
+quiet = False
 full_details = False
 
 # File variables
@@ -53,6 +61,9 @@ urldoc = "http://mesu.apple.com/assets/com_apple_MobileAsset_SoftwareUpdateDocum
 # PLIST file entries or assets (dictionaries)
 assets = defaultdict(list)
 assets_by_ios_version = defaultdict(list)
+
+# PLIST file XML schema
+schema = defaultdict(int)
 
 # Total number of assets or entries
 num_assets = 0
@@ -79,6 +90,8 @@ summary = False
 file_summary = False
 summary_by_device = False
 summary_by_ios_version = False
+xml_schema = False
+xml_schema_count = False
 
 # Default response if an element/key is not found in a dictionary
 default_response = "None"
@@ -265,6 +278,25 @@ def parse(infile):
     return count
 
 
+# Parse PLIST file XML schema
+def parseXMLSchema(infile):
+
+    count = 0
+
+    plist = plistlib.readPlist(infile)
+    list_of_assets = plist.get("Assets", default_response)
+    #print list_of_assets
+    if list_of_assets == default_response:
+        error("The 'Assets' key is not available in the PLIST file: {0}".format(infile))
+
+    for entry in list_of_assets: # dict
+        # Increase entry id
+        count += 1
+        for element in entry:
+            schema[element] +=1
+    # Return total number of entries
+    return count
+
 # Get assets classified by iOS version
 def getAssetsByiOSVersion():
     global assets_by_ios_version
@@ -328,8 +360,9 @@ def assetSummary(count, dev, version, entry):
 
 # Print details for assets for a specific device
 def printAssetsForDevice(this_device):
-    print "- Assets Details for Device %s: " % this_device
-    print ""
+    if not quiet:
+        print "- Assets Details for Device %s: " % this_device
+        print ""
     count = 0
     # Print sorted list of assets and all their associated details for a specific device
     for entry in sorted(assets[this_device]):
@@ -363,8 +396,9 @@ def printAssetsForiOSVersion(this_ios_version):
 # Print details for all assets in PLIST file
 def printAssets():
     #print assets
-    print "- PLIST File Details: (%d assets)" % num_assets
-    print ""
+    if not quiet:
+        print "- PLIST File Details: (%d assets)" % num_assets
+        print ""
     count = 0
     # Print sorted list of assets and all their associated details
     for dev in sorted(assets):
@@ -389,8 +423,9 @@ def summaryOneLine():
 def summaryFile():
     beta = " (beta)" if has_beta_versions else ""
 
-    print "- File Summary: "
-    print ""
+    if not quiet:
+        print "- File Summary: "
+        print ""
     print "Filename:        %s" % input_file
     print "SHA1:            %s" % filesha1
     print "Size:            %d" % filesize
@@ -406,8 +441,9 @@ def summaryFile():
 
 # Print summary of PLIST file by model
 def summaryByDevice():
-    print "- Summary By Device: (%d devices)" % num_devices
-    print ""
+    if not quiet:
+        print "- Summary By Device: (%d devices)" % num_devices
+        print ""
     # Print (sorted & unique) list of devices and (sorted & unique) associated iOS versions
     for dev in sorted(assets):
         print "%s: %s" % (dev, " ".join(iOSVersionsFor(dev)))
@@ -415,8 +451,9 @@ def summaryByDevice():
 
 # Print summary of PLIST file by iOS version
 def summaryByiOSVersion():
-    print "- Summary By iOS Version: (%d iOS versions)" % num_versions
-    print ""
+    if not quiet:
+        print "- Summary By iOS Version: (%d iOS versions)" % num_versions
+        print ""
     # Print (sorted & unique) list of iOS versions and associated devices
     for ver, assets_list in sorted(assets_by_ios_version.items()):
         print "%s: %s" % (ver, " ".join(sorted(set(assets_list))))
@@ -440,6 +477,25 @@ def summaryDevicesFor(this_ios_version):
         print "%s" % (" ".join(sorted(set(devices))))
 
 
+# Print XML schema of PLIST file
+def printXMLSchema(infile):
+    # Parse XML schema
+    num_entries = parseXMLSchema(infile)
+    #print schema
+    if not quiet:
+        print "- XML schema: (%d assets)" % num_entries
+        print ""
+    # Print XML schema entries with count numbers
+    for entry in sorted(schema):
+        print "%s: %d" % (entry, schema[entry])
+
+
+# Print number of entries in XML schema of PLIST file
+def printXMLSchemaCount(infile):
+    # Parse XML schema
+    num_entries = parseXMLSchema(infile)
+    print num_entries
+
 
 #  MAIN:
 # -------
@@ -461,7 +517,9 @@ if __name__ == "__main__":
 
     # General flags:
     parser.add_argument("-v", "--verbose", action="store_true",
-                        help="Increase output verbosity (default = off)")
+                        help="Increase output verbosity (default = off).")
+    parser.add_argument("-q", "--quiet", action="store_true",
+                        help="Do not show headers and other details (default = off).")
     parser.add_argument("-f", "--file", help="iOS software update PLIST file:\n" +
                         "(e.g. com_apple_MobileAsset_SoftwareUpdate.xml)")
     parser.add_argument("-V", "--version", action='version', version=__version__,
@@ -489,6 +547,10 @@ if __name__ == "__main__":
                                  help="Show maximum iOS version.")
     group_selectors.add_argument("-b", "--both-versions", action="store_true",
                                  help="Show both minimum & maximum iOS version.")
+    group_selectors.add_argument("-X", "--xml-schema", action="store_true",
+                                 help="Show the PLIST file XML schema.")
+    group_selectors.add_argument("-x", "--xml-schema-count", action="store_true",
+                                 help="Show the number of entries in the PLIST file XML schema.")
 
     args = parser.parse_args()
 
@@ -501,6 +563,9 @@ if __name__ == "__main__":
 
     if args.verbose:
         verbose = args.verbose
+
+    if args.quiet:
+        quiet = args.quiet
 
     if args.full_details:
         full_details = args.full_details
@@ -523,6 +588,10 @@ if __name__ == "__main__":
         summary_by_device = args.summary_by_device
     elif args.summary_by_ios_version:
         summary_by_ios_version = args.summary_by_ios_version
+    elif args.xml_schema:
+        xml_schema = args.xml_schema
+    elif args.xml_schema_count:
+        xml_schema_count = args.xml_schema_count
     else:
         # Show a one-line summary of the PLIST file (default output)
         summary = True
@@ -549,16 +618,18 @@ if __name__ == "__main__":
         if not verbose:
             summaryiOSVersionsFor(device)
         else:
-            print
-            print(header)
+            if not quiet:
+                print
+                print(header)
             printAssetsForDevice(device)
             #print
     elif ios_version: # If is not an empty string
         if not verbose:
             summaryDevicesFor(ios_version)
         else:
-            print
-            print(header)
+            if not quiet:
+                print
+                print(header)
             printAssetsForiOSVersion(ios_version)
             #print
     elif min_version:
@@ -574,30 +645,43 @@ if __name__ == "__main__":
     elif file_summary:
         if not verbose:
             # Print PLIST file summary
-            print
-            print(header)
+            if not quiet:
+                print
+                print(header)
             summaryFile()
             #print
         else:
             # Print full details from PLIST file
-            print
-            print(header)
+            if not quiet:
+                print
+                print(header)
             summaryFile()
             print
             printAssets()
             #print
     elif summary_by_device:
         # Print PLIST summary by device
-        print
-        print(header)
+        if not quiet:
+            print
+            print(header)
         summaryByDevice()
         #print
     elif summary_by_ios_version:
         # Print PLIST summary by iOS version
-        print
-        print(header)
+        if not quiet:
+            print
+            print(header)
         summaryByiOSVersion()
         #print
+    elif xml_schema:
+        # Print PLIST file XML schema
+        if not quiet:
+            print
+            print(header)
+        printXMLSchema(input_file)
+    elif xml_schema_count:
+        # Print number of entries in PLIST file XML schema
+        printXMLSchemaCount(input_file)
     else:
         # Default:
         # Print one-line PLIST summary
